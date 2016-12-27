@@ -8,6 +8,16 @@ namespace QueryCache;
 class QueryFactory
 {
 
+    /**
+     * Creates the correct query object based on the query type.
+     *
+     * @param string $query
+     * @param array $args
+     * @param array $options
+     * @param array $config
+     *
+     * @return QueryCache\Query
+     */
     public static function create($query, $args, $options, $config)
     {
         $query_type = Query::queryType($query);

@@ -1,16 +1,9 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\query_cache\CUDQuery.
- */
-
-namespace Drupal\query_cache;
-
-require_once __DIR__ . '/Query.php';
+namespace QueryCache;
 
 /**
- * A class for invalidating queries on CUD operations.
+ * A class for invalidating queries on CREATE, UPDATE, DELETE operations.
  */
 class CUDQuery extends Query {
 

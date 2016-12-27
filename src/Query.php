@@ -1,23 +1,16 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\query_cache\CacheableQuery.
- */
-
-namespace Drupal\query_cache;
-
-require_once __DIR__ . '/CUDQuery.php';
-require_once __DIR__ . '/CacheableQuery.php';
+namespace QueryCache;
 
 /**
- * A class for caching and invalidating queries.
+ * A base class for caching and invalidating queries.
  */
 class Query {
 
   protected $query;
   protected $args;
   protected $options;
+
   protected $config;
   protected $queryInfo;
 

@@ -1,12 +1,10 @@
 <?php
 
+namespace QueryCache;
+
 /**
- * @file
- * Contains \Drupal\query_cache\CachedResult.
+ * A class for representing a cached database query result.
  */
-
-namespace Drupal\query_cache;
-
 class CachedResult {
 
   protected $data;

@@ -1,16 +1,9 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\query_cache\KVCUDQuery.
- */
-
-namespace Drupal\query_cache;
-
-require_once __DIR__ . '/CUDQuery.php';
+namespace QueryCache;
 
 /**
- * A class for invalidating KV queries on CUD operations.
+ * A class for invalidating key-value queries on CUD operations.
  */
 class KVCUDQuery extends CUDQuery {
 

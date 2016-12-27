@@ -1,14 +1,6 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\query_cache\CacheableQuery.
- */
-
-namespace Drupal\query_cache;
-
-require_once __DIR__ . '/Query.php';
-require_once __DIR__ . '/CachedResult.php';
+namespace QueryCache;
 
 /**
  * A class for caching queries.

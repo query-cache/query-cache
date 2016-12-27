@@ -10,9 +10,9 @@ use QueryCache\CUDQuery as BaseCUDQuery;
 class CUDQuery extends BaseCUDQuery
 {
 
-  /**
-   * {@inheritdoc}
-   */
+    /**
+     * {@inheritdoc}
+     */
     public function invalidateCache()
     {
         $columns = $this->config['primary_key'];
@@ -24,6 +24,6 @@ class CUDQuery extends BaseCUDQuery
         }
 
         $this->clear($key);
-        parent::invalidateCache();
+        $this->clear($this->queryCacheKeyPrefix() . ':', true);
     }
 }

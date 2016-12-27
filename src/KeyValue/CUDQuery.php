@@ -1,11 +1,13 @@
 <?php
 
-namespace QueryCache;
+namespace QueryCache\KeyValue;
+
+use QueryCache\CUDQuery as BaseCUDQuery;
 
 /**
  * A class for invalidating key-value queries on CUD operations.
  */
-class KVCUDQuery extends CUDQuery {
+class CUDQuery extends BaseCUDQuery {
 
   /**
    * {@inheritdoc}
@@ -20,7 +22,7 @@ class KVCUDQuery extends CUDQuery {
     }
 
     $this->clear($key);
-    $this->clear($this->queryCacheKeyPrefix() . ':', TRUE);
+    parent::invalidateCache();
   }
 
 }

@@ -1,0 +1,31 @@
+{
+    "name": "query-cache/query-cache",
+    "type": "library",
+    "description": "Query-Cache library using a PSR-6 cache backend",
+    "keywords": ["cache", "caching", "query-cache"],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Fabian Franz",
+            "email": "github@fabian-franz.de"
+        }
+    ],
+    "autoload":{
+        "psr-4":{
+            "QueryCache\\": "src"
+        }
+    },
+    "require": {
+        "php": ">=5.3.0"
+    },
+    "scripts": {
+        "cs": "phpcs --standard=PSR2 -n src",
+        "cbf": "phpcbf --standard=PSR2 -n src",
+        "test": "cd tests && phpunit"
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-master": "1.x-dev"
+        }
+    }
+}

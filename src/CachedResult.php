@@ -5,56 +5,62 @@ namespace QueryCache;
 /**
  * A class for representing a cached database query result.
  */
-class CachedResult {
+class CachedResult
+{
 
-  protected $data;
-  protected $filter;
-  protected $index;
-  protected $count;
+    protected $data;
+    protected $filter;
+    protected $index;
+    protected $count;
 
-  public function __construct($data = array(), $filter = array()) {
-    $this->data = $data;
-    $this->filter = array_flip($filter);
+    public function __construct($data = array(), $filter = array())
+    {
+        $this->data = $data;
+        $this->filter = array_flip($filter);
 
-    $this->index = 0;
-    $this->count = count($data);
-  }
-
-  protected function fetchRow($index) {
-    $record = $this->data[$index];
-    if (!empty($this->filter)) {
-      $record = array_intersect_key($record, $this->filter);
+        $this->index = 0;
+        $this->count = count($data);
     }
 
-    return $record;
-  }
+    protected function fetchRow($index)
+    {
+        $record = $this->data[$index];
+        if (!empty($this->filter)) {
+            $record = array_intersect_key($record, $this->filter);
+        }
 
-  public function fetchArray() {
-    if ($this->index < $this->count) {
-      $result = $this->fetchRow($this->index);
-      $this->index++;
-      return $result;
+        return $record;
     }
 
-    return FALSE;
-  }
+    public function fetchArray()
+    {
+        if ($this->index < $this->count) {
+            $result = $this->fetchRow($this->index);
+            $this->index++;
+            return $result;
+        }
 
-  public function fetchObject() {
-    if ($this->index < $this->count) {
-      return (object) $this->fetchArray();
+        return false;
     }
 
-    return FALSE;
-  }
+    public function fetchObject()
+    {
+        if ($this->index < $this->count) {
+            return (object) $this->fetchArray();
+        }
 
-  public function result() {
-    if ($this->count == 0) {
-      return FALSE;
+        return false;
     }
 
-    $row = $this->fetchRow(0);
-    $result = array_shift($row);
+    public function result()
+    {
+        if ($this->count == 0) {
+            return false;
+        }
 
-    return $result;
-  }
+        $row = $this->fetchRow(0);
+        $result = array_shift($row);
+
+        return $result;
+    }
 }

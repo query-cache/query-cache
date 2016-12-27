@@ -5,14 +5,15 @@ namespace QueryCache;
 /**
  * A base class for caching and invalidating queries.
  */
-class Query {
+class Query
+{
 
-  protected $query;
-  protected $args;
-  protected $options;
+    protected $query;
+    protected $args;
+    protected $options;
 
-  protected $config;
-  protected $queryInfo;
+    protected $config;
+    protected $queryInfo;
 
   /**
    * Constructs a Query object.
@@ -26,16 +27,17 @@ class Query {
    * @param array $config
    *   The configuration for the table the query affects.
    */
-  public function __construct($query, $args, $options, $config) {
-    $this->query = $query;
-    $this->args = $args;
-    $this->options = $options;
-    $this->config = $config;
+    public function __construct($query, $args, $options, $config)
+    {
+        $this->query = $query;
+        $this->args = $args;
+        $this->options = $options;
+        $this->config = $config;
 
-    if (isset($this->config['queries'][$this->query])) {
-      $this->queryInfo = $this->config['queries'][$this->query];
+        if (isset($this->config['queries'][$this->query])) {
+            $this->queryInfo = $this->config['queries'][$this->query];
+        }
     }
-  }
 
   /**
    * Executes the query.
@@ -44,35 +46,36 @@ class Query {
    *   A database query result, a CachedResult object, or FALSE if the
    *   query was not executed correctly.
    */
-  public function execute() {
-    return $this->executeOriginalQuery();
-  }
-
-  public function namedArguments() {
-    // Fallback to arg_? in case of unnamed arguments.
-    if (isset($this->queryInfo['args'])) {
-      $names = $this->queryInfo['args'];
-    }
-    else {
-      $names = array();
-      foreach ($this->args as $key => $val) {
-        if (is_numeric($key)) {
-          $names[] = 'arg_' . $key;
-        }
-        else {
-          $names[] = $key;
-        }
-      }
+    public function execute()
+    {
+        return $this->executeOriginalQuery();
     }
 
-    return array_combine($names, $this->args);
-  }
+    public function namedArguments()
+    {
+        // Fallback to arg_? in case of unnamed arguments.
+        if (isset($this->queryInfo['args'])) {
+            $names = $this->queryInfo['args'];
+        } else {
+            $names = array();
+            foreach ($this->args as $key => $val) {
+                if (is_numeric($key)) {
+                    $names[] = 'arg_' . $key;
+                } else {
+                    $names[] = $key;
+                }
+            }
+        }
 
-  public function queryCacheKeyPrefix() {
-    $keys = $this->config['cache']['keys'];
-    $keys[] = 'query';
-    return implode(':', $keys);
-  }
+        return array_combine($names, $this->args);
+    }
+
+    public function queryCacheKeyPrefix()
+    {
+        $keys = $this->config['cache']['keys'];
+        $keys[] = 'query';
+        return implode(':', $keys);
+    }
 
   /**
    * Returns the key-value cache key for the query or FALSE.
@@ -81,34 +84,37 @@ class Query {
    *   The cache key if the primary key is present in the arguments, FALSE
    *   otherwise.
    */
-  public function getKVCacheKey() {
-    $keys = $this->config['cache']['keys'];
-    $keys[] = 'key_value';
+    public function getKVCacheKey()
+    {
+        $keys = $this->config['cache']['keys'];
+        $keys[] = 'key_value';
 
-    $named_args = $this->namedArguments();
+        $named_args = $this->namedArguments();
 
-    foreach ($this->config['primary_key'] as $key) {
-      if (!isset($named_args[$key])) {
-        return FALSE;
-      }
+        foreach ($this->config['primary_key'] as $key) {
+            if (!isset($named_args[$key])) {
+                return false;
+            }
 
-      $keys[] = $key . '.' . $named_args[$key];
+            $keys[] = $key . '.' . $named_args[$key];
+        }
+
+        return implode(':', $keys);
     }
 
-    return implode(':', $keys);
-  }
-
-  public static function queryType($query) {
-    list($type) = explode(' ', $query);
-    return strtoupper($type);
-  }
+    public static function queryType($query)
+    {
+        list($type) = explode(' ', $query);
+        return strtoupper($type);
+    }
 
   /**
    * Executes the original query.
    */
-  protected function executeOriginalQuery() {
-    return $this->executeDBQuery($this->query, $this->args, $this->options);
-  }
+    protected function executeOriginalQuery()
+    {
+        return $this->executeDBQuery($this->query, $this->args, $this->options);
+    }
 
   /**
    * Executes a given database query.
@@ -117,7 +123,8 @@ class Query {
    * @param array $args
    * @param array $options
    */
-  protected function executeDBQuery($query, $args, $options) {
-    return _query_cache_execute_db_query($query, $args, $options);
-  }
+    protected function executeDBQuery($query, $args, $options)
+    {
+        return _query_cache_execute_db_query($query, $args, $options);
+    }
 }

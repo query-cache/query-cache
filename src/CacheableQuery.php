@@ -74,6 +74,17 @@ class CacheableQuery
     }
 
     /**
+     * Returns the cache configuration.
+     *
+     * @return array
+     *   The cache configuration.
+     */
+    public function getCacheConfiguration()
+    {
+        return $this->config['cache'];
+    }
+
+    /**
      * Returns the query cache key for the query.
      *
      * @return string
@@ -94,7 +105,6 @@ class CacheableQuery
 
         return implode(':', $keys);
     }
-
 
     /**
      * Returns the key-value cache key for the query or FALSE.

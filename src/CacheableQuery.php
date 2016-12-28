@@ -5,7 +5,7 @@ namespace QueryCache;
 /**
  * A base class for caching and invalidating queries.
  */
-class Query
+class CacheableQuery
 {
 
     protected $query;
@@ -48,9 +48,9 @@ class Query
         return $this->cacheable;
     }
 
-    public function getQueryType($query)
+    public function getQueryType()
     {
-        list($type) = explode(' ', $query);
+        list($type) = explode(' ', $this->query);
         return strtoupper($type);
     }
 

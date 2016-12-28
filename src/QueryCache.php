@@ -10,6 +10,7 @@ class QueryCache implements QueryExecutorInterface
     protected $config;
     protected $queryExecutor;
     protected $cachePoolFactory;
+    protected $cacheableQueryClass = '\QueryCache\CacheableQuery';
 
     public function __construct($config, $query_executor, $cache_pool_factory)
     {
@@ -29,13 +30,14 @@ class QueryCache implements QueryExecutorInterface
      */
     public function query($query, $args, $options)
     {
-        $config = $this->getQueryConfiguration($query);
-        if (!$config) {
+	// Early return if this table is not cacheable.
+        $table_config = $this->getQueryTableConfiguration($query);
+        if (!$table_config) {
             return $this->queryExecutor->query($query, $args, $options);
         }
 
         $class = $this->cacheableQueryClass;
-        $cacheable_query = new $class($query, $args, $options, $config);
+        $cacheable_query = new $class($query, $args, $options, $table_config);
 
         $query_type = $cacheable_query->queryType();
 
@@ -44,8 +46,9 @@ class QueryCache implements QueryExecutorInterface
             $this->invalidateQueryCache($cacheable_query);
         }
 
-        // Execute the original query and return.
-        if (!$cacheable_query->isCacheable()) {
+        // If this is not a SELECT query or not cacheable, then execute the
+        // original query and return.
+        if ($query_type != 'SELECT' || !$cacheable_query->isCacheable()) {
             return $this->queryExecutor->query($query, $args, $options);
         }
 
@@ -54,10 +57,11 @@ class QueryCache implements QueryExecutorInterface
 
     public function executeCacheableQuery($cacheable_query)
     {
+        $cache_pool = $this->cachePoolFactory->get($cacheable_query->getCacheConfiguration());
+
         $key = $cacheable_query->getCacheKey();
         $keys = array($key);
 
-        $cache_pool = $this->cachePoolFactory->get($cacheable_query->getCacheConfiguration());
         $items = $cache_pool->getMultiple($keys);
 
         if (!empty($items)) {
@@ -76,7 +80,7 @@ class QueryCache implements QueryExecutorInterface
         $cache_pool->clear();
     }
 
-    protected function getQueryConfiguration($query)
+    protected function getQueryTableConfiguration($query)
     {
         $query_table = null;
 

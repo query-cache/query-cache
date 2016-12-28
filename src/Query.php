@@ -14,6 +14,7 @@ class Query
 
     protected $config;
     protected $queryInfo;
+    protected $cacheable;
 
   /**
    * Constructs a Query object.
@@ -34,24 +35,26 @@ class Query
         $this->options = $options;
         $this->config = $config;
 
+        $this->cacheable = empty($this->config['cache_all_queries'];
+
         if (isset($this->config['queries'][$this->query])) {
             $this->queryInfo = $this->config['queries'][$this->query];
+            $this->cacheable = !empty($this->queryInfo['cache']);
         }
     }
 
-  /**
-   * Executes the query.
-   *
-   * @return mixed
-   *   A database query result, a CachedResult object, or FALSE if the
-   *   query was not executed correctly.
-   */
-    public function execute()
+    public function isCacheable()
     {
-        return $this->executeOriginalQuery();
+        return $this->cacheable;
     }
 
-    public function namedArguments()
+    public function getQueryType($query)
+    {
+        list($type) = explode(' ', $query);
+        return strtoupper($type);
+    }
+
+    public function getNamedArguments()
     {
         // Fallback to arg_? in case of unnamed arguments.
         if (isset($this->queryInfo['args'])) {
@@ -70,26 +73,42 @@ class Query
         return array_combine($names, $this->args);
     }
 
-    public function queryCacheKeyPrefix()
+    /**
+     * Returns the query cache key for the query.
+     *
+     * @return string
+     *   The query cache key.
+     */
+    public function getCacheKey()
     {
-        $keys = $this->config['cache']['keys'];
+        $keys = array();
         $keys[] = 'query';
+        $keys[] = $this->query;
+
+        foreach ($this->getNamedArguments() as $name => $arg) {
+            if (is_array($arg)) {
+                $arg = implode(',', $arg);
+            }
+            $keys[] = $name . '=' . $arg;
+        }
+
         return implode(':', $keys);
     }
 
-  /**
-   * Returns the key-value cache key for the query or FALSE.
-   *
-   * @return string|FALSE
-   *   The cache key if the primary key is present in the arguments, FALSE
-   *   otherwise.
-   */
+
+    /**
+     * Returns the key-value cache key for the query or FALSE.
+     *
+     * @return string|FALSE
+     *   The cache key if the primary key is present in the arguments, FALSE
+     *   otherwise.
+     */
     public function getKVCacheKey()
     {
-        $keys = $this->config['cache']['keys'];
+        $keys = array();
         $keys[] = 'key_value';
 
-        $named_args = $this->namedArguments();
+        $named_args = $this->getNamedArguments();
 
         foreach ($this->config['primary_key'] as $key) {
             if (!isset($named_args[$key])) {
@@ -100,31 +119,5 @@ class Query
         }
 
         return implode(':', $keys);
-    }
-
-    public static function queryType($query)
-    {
-        list($type) = explode(' ', $query);
-        return strtoupper($type);
-    }
-
-  /**
-   * Executes the original query.
-   */
-    protected function executeOriginalQuery()
-    {
-        return $this->executeDBQuery($this->query, $this->args, $this->options);
-    }
-
-  /**
-   * Executes a given database query.
-   *
-   * @param string $query
-   * @param array $args
-   * @param array $options
-   */
-    protected function executeDBQuery($query, $args, $options)
-    {
-        return _query_cache_execute_db_query($query, $args, $options);
     }
 }

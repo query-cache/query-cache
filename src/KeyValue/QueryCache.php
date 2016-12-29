@@ -18,8 +18,8 @@ class QueryCache extends BaseQueryCache
         $key = $cacheable_query->getKVCacheKey();
 
         if ($key !== false) {
-          $cache_pool = $this->cachePoolFactory->get($cacheable_query->getKVCacheConfiguration());
-          $cache_pool->deleteItem($key);
+            $cache_pool = $this->cachePoolFactory->get($cacheable_query->getKVCacheConfiguration());
+            $cache_pool->deleteItem($key);
         }
 
         parent::invalidateQueryCache($cacheable_query);

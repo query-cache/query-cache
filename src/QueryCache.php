@@ -12,11 +12,15 @@ class QueryCache implements QueryExecutorInterface
     protected $cachePoolFactory;
     protected $cacheableQueryClass = '\QueryCache\CacheableQuery';
 
-    public function __construct($config, $query_executor, $cache_pool_factory)
+    public function __construct($query_executor, $cache_pool_factory)
     {
-        $this->config = $config;
         $this->queryExecutor = $query_executor;
         $this->cachePoolFactory = $cache_pool_factory;
+    }
+
+    public function setConfiguration($configuration)
+    {
+        $this->config = static::parseConfiguration($configuration);
     }
 
     /**
@@ -30,7 +34,7 @@ class QueryCache implements QueryExecutorInterface
      */
     public function query($query, $args, $options)
     {
-	// Early return if this table is not cacheable.
+    // Early return if this table is not cacheable.
         $table_config = $this->getQueryTableConfiguration($query);
         if (!$table_config) {
             return $this->queryExecutor->query($query, $args, $options);
@@ -80,6 +84,67 @@ class QueryCache implements QueryExecutorInterface
         $cache_pool->clear();
     }
 
+    /**
+     */
+    protected static function parseConfiguration(array $base_configuration)
+    {
+        $query_cache_configuration = array();
+
+        foreach ($base_configuration as $table => $configuration) {
+            if (!$configuration) {
+                    continue;
+            }
+
+            if ($configuration === true) {
+                    $configuration = array();
+            }
+
+            $configuration += array(
+                'cache' => array(),
+                'queries' => array(),
+                'cache_all_queries' => true,
+                'test_queries' => false,
+                // Experimental options.
+                'key_value' => false,
+                'primary_key' => array(),
+            );
+
+            $configuration['cache'] += array(
+                'bin' => 'cache_query_' . $table,
+                'keys' => array(),
+                'expire' => -1, // @todo Add constant back.
+                'tags' => array(),
+            );
+
+            $bin = $configuration['cache']['bin'];
+            $queries = $configuration['queries'];
+            $configuration['queries'] = array();
+
+            foreach ($queries as $query_info) {
+                $query_info += array(
+                    'table' => $table,
+                    'query' => '',
+                    'args' => array(),
+                    'cache' => true,
+                    // Experimental options.
+                    'tables' => array(),
+                    'map_reduce' => array(),
+                );
+
+                $query = $query_info['query'];
+
+                // Key queries by query for easier lookup.
+                $configuration['queries'][$query] = $query_info;
+                $query_cache_configuration['queries'][$query] = $table;
+            }
+
+            $query_cache_configuration['tables'][$table] = $configuration;
+            $query_cache_configuration['cache_bins'][$bin] = $bin;
+        }
+
+        return $query_cache_configuration;
+    }
+
     protected function getQueryTableConfiguration($query)
     {
         $query_table = null;
@@ -96,7 +161,7 @@ class QueryCache implements QueryExecutorInterface
             }
         }
 
-        // If table could not be found, return early.
+        // If table exists and is configured, return the configuration.
         if (isset($query_table) && isset($this->config['tables'][$query_table])) {
             return $this->config['tables'][$query_table];
         }

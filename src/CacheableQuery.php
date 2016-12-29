@@ -35,7 +35,7 @@ class CacheableQuery
         $this->options = $options;
         $this->config = $config;
 
-        $this->cacheable = empty($this->config['cache_all_queries'];
+        $this->cacheable = empty($this->config['cache_all_queries']);
 
         if (isset($this->config['queries'][$this->query])) {
             $this->queryInfo = $this->config['queries'][$this->query];
@@ -71,6 +71,10 @@ class CacheableQuery
         }
 
         return array_combine($names, $this->args);
+    }
+
+    public function getQueryArgsOptions() {
+      return array($this->query, $this->args, $this->options);
     }
 
     /**

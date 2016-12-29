@@ -43,7 +43,7 @@ class QueryCache implements QueryExecutorInterface
         $class = $this->cacheableQueryClass;
         $cacheable_query = new $class($query, $args, $options, $table_config);
 
-        $query_type = $cacheable_query->queryType();
+        $query_type = $cacheable_query->getQueryType();
 
         // Invalidate the query cache for CUD operations.
         if ($query_type == 'INSERT' || $query_type == 'UPDATE' || $query_type == 'DELETE') {
@@ -72,6 +72,7 @@ class QueryCache implements QueryExecutorInterface
             return $items[0];
         }
 
+        list($query, $args, $options) = $cacheable_query->getQueryArgsOptions();
         $data = $this->queryExecutor->query($query, $args, $options);
         $cache_pool->set($key, $data);
 

@@ -15,6 +15,7 @@ class CacheableQuery
     protected $config;
     protected $queryInfo;
     protected $cacheable;
+    protected $namedArgs;
 
   /**
    * Constructs a Query object.
@@ -41,36 +42,13 @@ class CacheableQuery
             $this->queryInfo = $this->config['queries'][$this->query];
             $this->cacheable = !empty($this->queryInfo['cache']);
         }
+
+        $this->namedArgs = static::namedArguments($this->args, $this->queryInfo);
     }
 
     public function isCacheable()
     {
         return $this->cacheable;
-    }
-
-    public function getQueryType()
-    {
-        list($type) = explode(' ', $this->query);
-        return strtoupper($type);
-    }
-
-    public function getNamedArguments()
-    {
-        // Fallback to arg_? in case of unnamed arguments.
-        if (isset($this->queryInfo['args'])) {
-            $names = $this->queryInfo['args'];
-        } else {
-            $names = array();
-            foreach ($this->args as $key => $val) {
-                if (is_numeric($key)) {
-                    $names[] = 'arg_' . $key;
-                } else {
-                    $names[] = $key;
-                }
-            }
-        }
-
-        return array_combine($names, $this->args);
     }
 
     public function getQueryArgsOptions()
@@ -101,7 +79,7 @@ class CacheableQuery
         $keys[] = 'query';
         $keys[] = $this->query;
 
-        foreach ($this->getNamedArguments() as $name => $arg) {
+        foreach ($this->namedArgs as $name => $arg) {
             if (is_array($arg)) {
                 $arg = implode(',', $arg);
             }
@@ -110,6 +88,32 @@ class CacheableQuery
 
         return implode(':', $keys);
     }
+
+    public static function queryType($query)
+    {
+        list($type) = explode(' ', $query);
+        return strtoupper($type);
+    }
+
+    public static function namedArguments($args, $query_info)
+    {
+        // Fallback to arg_? in case of unnamed arguments.
+        if (isset($query_info['args'])) {
+            $names = $query_info['args'];
+        } else {
+            $names = array();
+            foreach ($args as $key => $val) {
+                if (is_numeric($key)) {
+                    $names[] = 'arg_' . $key;
+                } else {
+                    $names[] = $key;
+                }
+            }
+        }
+
+        return array_combine($names, $args);
+    }
+
 
     /**
      * Returns the key-value cache key for the query or FALSE.
@@ -120,16 +124,18 @@ class CacheableQuery
      */
     public function getKVCacheKey()
     {
+        if (empty($this->config['key_value']['cache'])) {
+            return false;
+        }
+
         $keys = array();
         $keys[] = 'key_value';
 
-        $named_args = $this->getNamedArguments();
-
         foreach ($this->config['key_value']['key'] as $key) {
-            if (!isset($named_args[$key])) {
+            if (!isset($this->namedArgs[$key])) {
                 return false;
             }
-            $arg = $named_args[$key];
+            $arg = $this->namedArgs[$key];
             if (is_array($arg)) {
                 $arg = implode(',', $arg);
             }
@@ -154,10 +160,9 @@ class CacheableQuery
     public function getKVQueryArgsOptions()
     {
         $args = array();
-        $named_args = $this->getNamedArguments();
 
         foreach ($this->config['key_value']['args'] as $key) {
-            $args[] = $named_args[$key];
+            $args[] = $this->namedArgs[$key];
         }
 
         return array($this->config['key_value']['query'], $args, $this->options);

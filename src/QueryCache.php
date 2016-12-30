@@ -34,7 +34,7 @@ class QueryCache implements QueryExecutorInterface
      */
     public function query($query, $args, $options)
     {
-    // Early return if this table is not cacheable.
+        // Early return if this table is not cacheable.
         $table_config = $this->getQueryTableConfiguration($query);
         if (!$table_config) {
             return $this->queryExecutor->query($query, $args, $options);
@@ -47,7 +47,9 @@ class QueryCache implements QueryExecutorInterface
 
         // Invalidate the query cache for CUD operations.
         if ($query_type == 'INSERT' || $query_type == 'UPDATE' || $query_type == 'DELETE') {
+            $result = $this->queryExecutor->query($query, $args, $options);
             $this->invalidateQueryCache($cacheable_query);
+            return $result;
         }
 
         // If this is not a SELECT query or not cacheable, then execute the
@@ -107,7 +109,6 @@ class QueryCache implements QueryExecutorInterface
                 'test_queries' => false,
                 // Experimental options.
                 'key_value' => false,
-                'primary_key' => array(),
             );
 
             $configuration['cache'] += array(
@@ -117,7 +118,34 @@ class QueryCache implements QueryExecutorInterface
                 'tags' => array(),
             );
 
+            if ($configuration['key_value'] === true) {
+                $configuration['key_value'] = array();
+            }
+
+            if ($configuration['key_value'] !== false) {
+                $configuration['key_value'] += array(
+                'cache' => array(),
+                'key' => array(),
+                'query' => '',
+                'args' => array(),
+                );
+
+                if ($configuration['key_value']['cache'] !== false) {
+                    $configuration['key_value']['cache'] += array(
+                    'bin' => 'cache_key_value_' . $table,
+                    'keys' => array(),
+                    'expire' => -1, // @todo Add constant back.
+                    'tags' => array(),
+                    );
+
+                    $bin = $configuration['key_value']['cache']['bin'];
+                    $query_cache_configuration['cache_bins'][$bin] = $bin;
+                }
+            }
+
             $bin = $configuration['cache']['bin'];
+            $query_cache_configuration['cache_bins'][$bin] = $bin;
+
             $queries = $configuration['queries'];
             $configuration['queries'] = array();
 
@@ -140,7 +168,6 @@ class QueryCache implements QueryExecutorInterface
             }
 
             $query_cache_configuration['tables'][$table] = $configuration;
-            $query_cache_configuration['cache_bins'][$bin] = $bin;
         }
 
         return $query_cache_configuration;

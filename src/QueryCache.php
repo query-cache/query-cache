@@ -41,28 +41,62 @@ class QueryCache implements QueryExecutorInterface
         }
 
         $class = $this->cacheableQueryClass;
-        $cacheable_query = new $class($query, $args, $options, $table_config);
-
-        $query_type = $cacheable_query->getQueryType();
+        $query_type = $class::queryType($query);
 
         // Invalidate the query cache for CUD operations.
         if ($query_type == 'INSERT' || $query_type == 'UPDATE' || $query_type == 'DELETE') {
             $result = $this->queryExecutor->query($query, $args, $options);
+
+            $cacheable_query = new $class($query, $args, $options, $table_config);
             $this->invalidateQueryCache($cacheable_query);
             return $result;
         }
 
-        // If this is not a SELECT query or not cacheable, then execute the
-        // original query and return.
-        if ($query_type != 'SELECT' || !$cacheable_query->isCacheable()) {
+        // If this is not a SELECT query, then execute the original query and
+        // return.
+        if ($query_type != 'SELECT') {
             return $this->queryExecutor->query($query, $args, $options);
         }
 
-        return $this->executeCacheableQuery($cacheable_query);
+        // Check for map/reduce
+        $query_info = null;
+        $filter = null;
+        if (isset($table_config['queries'][$query])) {
+            $query_info = $table_config['queries'][$query];
+        }
+
+        if (isset($query_info['map_reduce']['query'])) {
+            $query = $query_info['map_reduce']['query'];
+            $named_args = $class::namedArguments($args, $query_info);
+
+            $args = array();
+            foreach ($query_info['map_reduce']['args'] as $key) {
+                $args[] = $named_args[$key];
+            }
+            if (!empty($query_info['map_reduce']['filter'])) {
+                $filter = $query_info['map_reduce']['filter'];
+            }
+        }
+
+
+        // Execute potentially cacheable query.
+        $cacheable_query = new $class($query, $args, $options, $table_config);
+        $data = $this->executeCacheableQuery($cacheable_query);
+
+        if (!empty($data) && isset($filter)) {
+            $data = static::applyFilter($data, $filter, $named_args);
+        }
+
+        return $data;
     }
 
     public function executeCacheableQuery($cacheable_query)
     {
+        if (!$cacheable_query->isCacheable()) {
+            list($query, $args, $options) = $cacheable_query->getQueryArgsOptions();
+            return $this->queryExecutor->query($query, $args, $options);
+        }
+
         $cache_pool = $this->cachePoolFactory->get($cacheable_query->getCacheConfiguration());
 
         $key = $cacheable_query->getCacheKey();
@@ -85,6 +119,91 @@ class QueryCache implements QueryExecutorInterface
     {
         $cache_pool = $this->cachePoolFactory->get($cacheable_query->getCacheConfiguration());
         $cache_pool->clear();
+    }
+
+    public static function applyFilter($data, $filters, $named_arguments)
+    {
+        // First reduce the set.
+        if (!empty($filters['where'])) {
+            $conditions = array();
+            foreach ($filters['where'] as $key => $value) {
+                if (is_numeric($key)) {
+                    $conditions[$value] = $named_arguments[$value];
+                } else {
+                    $conditions[$key] = $value;
+                }
+            }
+            $new_data = array();
+            foreach ($data as $row) {
+                $row_valid = true;
+                foreach ($conditions as $key => $value) {
+                    if (!isset($row[$key]) || $row[$key] != $value) {
+                        $row_valid = false;
+                        break;
+                    }
+                }
+                if ($row_valid) {
+                    $new_data[] = $row;
+                }
+            }
+
+            $data = $new_data;
+        }
+        // Order
+        if (!empty($filters['order'])) {
+            $order = array();
+
+            foreach ($filters['order'] as $key => $value) {
+                if (is_numeric($key)) {
+                    $order[$value] = array(SORT_ASC, SORT_STRING);
+                } else {
+                    if (!is_array($value)) {
+                        $value = array($value, SORT_STRING);
+                    }
+                    if (!isset($value[1])) {
+                        $value = array($value[0], SORT_STRING);
+                    }
+
+                    $order[$key] = $value;
+                }
+            }
+
+            $data = static::orderBy($data, $order);
+        }
+
+        // Select
+        if (!empty($filters['select'])) {
+            $select = $filters['select'];
+
+            foreach ($data as $index => $row) {
+                $new_row = array();
+                foreach ($select as $key) {
+                    $new_row[$key] = $row[$key];
+                }
+
+                $data[$index] = $new_row;
+            }
+        }
+
+        return $data;
+    }
+
+    protected static function orderBy($data, $order)
+    {
+        foreach ($order as $field => $options) {
+            $tmp = array();
+            foreach ($data as $key => $row) {
+                $tmp[$key] = $row[$field];
+            }
+
+            $args[] = $tmp;
+            $args[] = $options[0];
+            $args[] = $options[1];
+        }
+
+        $args[] = &$data;
+        call_user_func_array('array_multisort', $args);
+        return array_pop($args);
     }
 
     /**

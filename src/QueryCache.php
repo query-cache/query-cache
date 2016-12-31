@@ -58,6 +58,15 @@ class QueryCache implements QueryExecutorInterface
             return $this->queryExecutor->query($query, $args, $options);
         }
 
+        $test_query = false;
+        if (!empty($table_config['test_queries'])) {
+            $test_query = $query;
+            $test_args = $args
+            $test_options = $options;
+            $pre_data = $this->queryExecutor->query($query, $args, $options);
+        }
+
+
         // Check for map/reduce
         $query_info = null;
         $filter = null;
@@ -78,13 +87,23 @@ class QueryCache implements QueryExecutorInterface
             }
         }
 
-
         // Execute potentially cacheable query.
         $cacheable_query = new $class($query, $args, $options, $table_config);
         $data = $this->executeCacheableQuery($cacheable_query);
 
         if (!empty($data) && isset($filter)) {
             $data = static::applyFilter($data, $filter, $named_args);
+        }
+
+        if (!empty($test_query)) {
+            if ($pre_data != $data) {
+                $post_data = $this->queryExecutor->query($test_query, $test_args, $test_options);
+                // Check $pre_data vs. $post_data to avoid race conditions.
+                if ($pre_data == $post_data) {
+                    // Trigger an erorr that the test failed.
+                    trigger_error("Warning: Query $query failed test check.", E_USER_ERROR);
+                }
+            }
         }
 
         return $data;

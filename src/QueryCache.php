@@ -7,11 +7,12 @@ namespace QueryCache;
  */
 class QueryCache implements QueryExecutorInterface
 {
-    protected $config;
     protected $queryExecutor;
     protected $cachePoolFactory;
+
     protected $cacheableQueryClass = '\QueryCache\CacheableQuery';
     protected $selectMiddlewares = array();
+    protected $config;
 
     public function __construct($query_executor, $cache_pool_factory)
     {
@@ -52,11 +53,7 @@ class QueryCache implements QueryExecutorInterface
 
         // Invalidate the query cache for CUD operations.
         if ($query_type == 'INSERT' || $query_type == 'UPDATE' || $query_type == 'DELETE') {
-            $result = $this->queryExecutor->query($query, $args, $options);
-
-            $cacheable_query = new $class($query, $args, $options, $table_config);
-            $this->invalidateQueryCache($cacheable_query);
-            return $result;
+            return $this->invalidateQueryCache($query, $args, $options, $table_config);
         }
 
         // If this is not a SELECT query, then execute the original query and
@@ -78,12 +75,6 @@ class QueryCache implements QueryExecutorInterface
     {
             // assert('empty($callbacks)', 'Callbacks must be empty in the final callback.');
             return $this->queryExecutor->query($query, $args, $options);
-    }
-
-    public function invalidateQueryCache($cacheable_query)
-    {
-        $cache_pool = $this->cachePoolFactory->get($cacheable_query->getCacheConfiguration());
-        $cache_pool->clear();
     }
 
     public function testQueryMiddleware($callbacks, $query, $args, $options, $table_config)
@@ -188,6 +179,14 @@ class QueryCache implements QueryExecutorInterface
         $cache_pool->set($key, $data);
 
         return $data;
+    }
+
+    public function invalidateQueryCache($query, $args, $options, $table_config)
+    {
+        $class = $this->cacheableQueryClass;
+        $cacheable_query = new $class($query, $args, $options, $table_config);
+        $cache_pool = $this->cachePoolFactory->get($cacheable_query->getCacheConfiguration());
+        $cache_pool->clear();
     }
 
     public static function applyFilter($data, $filters, $named_arguments)

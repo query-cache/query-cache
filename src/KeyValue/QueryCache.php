@@ -10,12 +10,15 @@ use QueryCache\QueryCache as BaseQueryCache;
 class QueryCache extends BaseQueryCache
 {
 
-    public function executeCacheableQuery($cacheable_query)
+    public function cacheMiddleware($callbacks, $query, $args, $options, $table_config)
     {
+        $class = $this->cacheableQueryClass;
+        $cacheable_query = new $class($query, $args, $options, $table_config);
+
         $key = $cacheable_query->getKVCacheKey();
 
         if ($key === false) {
-            return parent::executeCacheableQuery($cacheable_query);
+            return parent::executeCacheableQuery($callbacks, $query, $args, $options, $table_config);
         }
 
         $cache_pool = $this->cachePoolFactory->get($cacheable_query->getKVCacheConfiguration());
@@ -28,7 +31,7 @@ class QueryCache extends BaseQueryCache
         }
 
         list($query, $args, $options) = $cacheable_query->getKVQueryArgsOptions();
-        $data = $this->queryExecutor->query($query, $args, $options);
+        $data = $this->query($query, $args, $options);
         $cache_pool->set($key, $data);
 
         return $data;
@@ -37,8 +40,11 @@ class QueryCache extends BaseQueryCache
     /**
      * {@inheritdoc}
      */
-    public function invalidateQueryCache($cacheable_query)
+    public function invalidateQueryCache($query, $args, $options, $table_config)
     {
+        $class = $this->cacheableQueryClass;
+        $cacheable_query = new $class($query, $args, $options, $table_config);
+
         $key = $cacheable_query->getKVCacheKey();
         $cache_pool = $this->cachePoolFactory->get($cacheable_query->getKVCacheConfiguration());
 

@@ -26,19 +26,8 @@ class QueryCache implements QueryExecutorInterface
         );
     }
 
-    public function setConfiguration($configuration)
-    {
-        $this->config = static::parseConfiguration($configuration);
-    }
-
     /**
-     * Executes the given query with the argument and options.
-     *
-     * @param string $query
-     * @param array $args
-     * @param array $options
-     *
-     * @return array|\Traversable
+     * {@inheritdoc}
      */
     public function query($query, $args, $options)
     {
@@ -71,6 +60,11 @@ class QueryCache implements QueryExecutorInterface
         return $data;
     }
 
+    public function setConfiguration($configuration)
+    {
+        $this->config = static::parseConfiguration($configuration);
+    }
+
     public function queryFinal($callbacks, $query, $args, $options, $table_config)
     {
             // assert('empty($callbacks)', 'Callbacks must be empty in the final callback.');
@@ -79,34 +73,49 @@ class QueryCache implements QueryExecutorInterface
 
     public function testQueryMiddleware($callbacks, $query, $args, $options, $table_config)
     {
-        $test_query = false;
-        if (!empty($table_config['test_queries']) && mt_rand(1, 100) <= $table_config['test_queries']) {
-            $test_query = true;
-            $pre_data = $this->queryExecutor->query($query, $args, $options);
+        $callback = array_shift($callbacks);
+        $test_queries = null;
+        $query_info = null;
 
-            if ($pre_data instanceof \Traversable) {
-                $pre_data = iterator_to_array($data);
-            }
+        if (isset($table_config['queries'][$query])) {
+            $query_info = $table_config['queries'][$query];
         }
 
-        $callback = array_shift($callbacks);
-        $data = $callback($callbacks, $query, $args, $options, $table_config);
+        // Check for a query-specific override.
+        if (isset($query_info['test_query.test_queries'])) {
+            $test_queries = $query_info['test_query.test_queries'];
+        }
+        elseif (isset($table_config['test_query.test_queries'])) {
+            $test_queries = $table_config['test_query.test_queries'];
+        }
 
+        // Early return if we do not want testing.
+        if (empty($test_queries) || mt_rand(1, 100) > $test_queries) {
+            return $callback($callbacks, $query, $args, $options, $table_config);
+        }
+
+        $pre_data = $this->queryExecutor->query($query, $args, $options);
+        if ($pre_data instanceof \Traversable) {
+            $pre_data = iterator_to_array($data);
+        }
+
+        $data = $callback($callbacks, $query, $args, $options, $table_config);
         if ($data instanceof \Traversable) {
             $data = iterator_to_array($data);
         }
 
-        if (!empty($test_query) && $pre_data != $data) {
-            $post_data = $this->queryExecutor->query($test_query, $test_args, $test_options);
+        if (serialize($pre_data) != serialize($data)) {
+            $post_data = $this->queryExecutor->query($query, $args, $options);
             if ($post_data instanceof \Traversable) {
                 $post_data = iterator_to_array($data);
             }
 
             // Check $pre_data vs. $post_data to avoid race conditions.
-            if ($pre_data == $post_data) {
-                // Trigger an erorr that the test failed.
+            if (serialize($pre_data) == serialize($post_data)) {
+                // Trigger an error that the test failed.
                 trigger_error("Warning: Query $query failed test check.", E_USER_ERROR);
             }
+
         }
 
         return $data;
@@ -114,6 +123,8 @@ class QueryCache implements QueryExecutorInterface
 
     public function mapReduceMiddleware($callbacks, $query, $args, $options, $table_config)
     {
+        $callback = array_shift($callbacks);
+
         // Check for map/reduce
         $query_info = null;
         $filter = null;
@@ -141,7 +152,6 @@ class QueryCache implements QueryExecutorInterface
             return $data;
         }
 
-        $callback = array_shift($callbacks);
         $data = $callback($callbacks, $query, $args, $options, $table_config);
 
         return $data;
@@ -149,12 +159,13 @@ class QueryCache implements QueryExecutorInterface
 
     public function cacheMiddleware($callbacks, $query, $args, $options, $table_config)
     {
+        $callback = array_shift($callbacks);
+
         // Execute potentially cacheable query.
         $class = $this->cacheableQueryClass;
         $cacheable_query = new $class($query, $args, $options, $table_config);
 
         if (!$cacheable_query->isCacheable()) {
-            $callback = array_shift($callbacks);
             return $callback($callbacks, $query, $args, $options, $table_config);
         }
 
@@ -169,7 +180,6 @@ class QueryCache implements QueryExecutorInterface
             return $items[0];
         }
 
-        $callback = array_shift($callbacks);
         $data = $callback($callbacks, $query, $args, $options, $table_config);
 
         if ($data instanceof \Traversable) {
@@ -291,9 +301,8 @@ class QueryCache implements QueryExecutorInterface
 
             $configuration += array(
                 'cache' => array(),
-                'queries' => array(),
                 'cache_all_queries' => true,
-                'test_queries' => false,
+                'queries' => array(),
                 // Experimental options.
                 'key_value' => false,
             );
@@ -311,18 +320,18 @@ class QueryCache implements QueryExecutorInterface
 
             if ($configuration['key_value'] !== false) {
                 $configuration['key_value'] += array(
-                'cache' => array(),
-                'key' => array(),
-                'query' => '',
-                'args' => array(),
+                    'cache' => array(),
+                    'key' => array(),
+                    'query' => '',
+                    'args' => array(),
                 );
 
                 if ($configuration['key_value']['cache'] !== false) {
                     $configuration['key_value']['cache'] += array(
-                    'bin' => 'cache_key_value_' . $table,
-                    'keys' => array(),
-                    'expire' => -1, // @todo Add constant back.
-                    'tags' => array(),
+                        'bin' => 'cache_key_value_' . $table,
+                        'keys' => array(),
+                        'expire' => -1, // @todo Add constant back.
+                        'tags' => array(),
                     );
 
                     $bin = $configuration['key_value']['cache']['bin'];

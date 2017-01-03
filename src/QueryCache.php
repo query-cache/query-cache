@@ -20,7 +20,7 @@ class QueryCache implements QueryExecutorInterface
         $this->cachePoolFactory = $cache_pool_factory;
 
         $this->selectMiddlewares = array(
-            'test_query' => array($this, 'testQueryMiddleware'),
+            'test_queries' => array($this, 'testQueryMiddleware'),
             'map_reduce' => array($this, 'mapReduceMiddleware'),
             'cache' => array($this, 'cacheMiddleware'),
         );
@@ -82,11 +82,11 @@ class QueryCache implements QueryExecutorInterface
         }
 
         // Check for a query-specific override.
-        if (isset($query_info['test_query.test_queries'])) {
-            $test_queries = $query_info['test_query.test_queries'];
+        if (isset($query_info['test_queries'])) {
+            $test_queries = $query_info['test_queries'];
         }
-        elseif (isset($table_config['test_query.test_queries'])) {
-            $test_queries = $table_config['test_query.test_queries'];
+        elseif (isset($table_config['test_queries'])) {
+            $test_queries = $table_config['test_queries'];
         }
 
         // Early return if we do not want testing.

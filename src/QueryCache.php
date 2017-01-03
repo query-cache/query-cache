@@ -11,11 +11,18 @@ class QueryCache implements QueryExecutorInterface
     protected $queryExecutor;
     protected $cachePoolFactory;
     protected $cacheableQueryClass = '\QueryCache\CacheableQuery';
+    protected $selectMiddlewares = array();
 
     public function __construct($query_executor, $cache_pool_factory)
     {
         $this->queryExecutor = $query_executor;
         $this->cachePoolFactory = $cache_pool_factory;
+
+        $this->selectMiddlewares = array(
+            'test_query' => array($this, 'testQueryMiddleware'),
+            'map_reduce' => array($this, 'mapReduceMiddleware'),
+            'cache' => array($this, 'cacheMiddleware'),
+        );
     }
 
     public function setConfiguration($configuration)
@@ -58,15 +65,64 @@ class QueryCache implements QueryExecutorInterface
             return $this->queryExecutor->query($query, $args, $options);
         }
 
+        $callbacks = $this->selectMiddlewares;
+        $callbacks['query'] = array($this, 'queryFinal');
+
+        $callback = array_shift($callbacks);
+        $data = $callback($callbacks, $query, $args, $options, $table_config);
+
+        return $data;
+    }
+
+    public function queryFinal($callbacks, $query, $args, $options, $table_config)
+    {
+            // assert('empty($callbacks)', 'Callbacks must be empty in the final callback.');
+            return $this->queryExecutor->query($query, $args, $options);
+    }
+
+    public function invalidateQueryCache($cacheable_query)
+    {
+        $cache_pool = $this->cachePoolFactory->get($cacheable_query->getCacheConfiguration());
+        $cache_pool->clear();
+    }
+
+    public function testQueryMiddleware($callbacks, $query, $args, $options, $table_config)
+    {
         $test_query = false;
-        $random = mt_rand(1, 100);
-        if (!empty($table_config['test_queries']) && $random <= $table_config['test_queries']) {
-            $test_query = $query;
-            $test_args = $args;
-            $test_options = $options;
+        if (!empty($table_config['test_queries']) && mt_rand(1, 100) <= $table_config['test_queries']) {
+            $test_query = true;
             $pre_data = $this->queryExecutor->query($query, $args, $options);
+
+            if ($pre_data instanceof \Traversable) {
+                $pre_data = iterator_to_array($data);
+            }
         }
 
+        $callback = array_shift($callbacks);
+        $data = $callback($callbacks, $query, $args, $options, $table_config);
+
+        if ($data instanceof \Traversable) {
+            $data = iterator_to_array($data);
+        }
+
+        if (!empty($test_query) && $pre_data != $data) {
+            $post_data = $this->queryExecutor->query($test_query, $test_args, $test_options);
+            if ($post_data instanceof \Traversable) {
+                $post_data = iterator_to_array($data);
+            }
+
+            // Check $pre_data vs. $post_data to avoid race conditions.
+            if ($pre_data == $post_data) {
+                // Trigger an erorr that the test failed.
+                trigger_error("Warning: Query $query failed test check.", E_USER_ERROR);
+            }
+        }
+
+        return $data;
+    }
+
+    public function mapReduceMiddleware($callbacks, $query, $args, $options, $table_config)
+    {
         // Check for map/reduce
         $query_info = null;
         $filter = null;
@@ -76,44 +132,39 @@ class QueryCache implements QueryExecutorInterface
 
         if (isset($query_info['map_reduce']['query'])) {
             $query = $query_info['map_reduce']['query'];
+            $class = $this->cacheableQueryClass;
             $named_args = $class::namedArguments($args, $query_info);
 
             $args = array();
             foreach ($query_info['map_reduce']['args'] as $key) {
                 $args[] = $named_args[$key];
             }
-            if (!empty($query_info['map_reduce']['filter'])) {
+
+            $data = $this->query($query, $args, $options);
+
+            if (!empty($data) && !empty($query_info['map_reduce']['filter'])) {
                 $filter = $query_info['map_reduce']['filter'];
+                $data = static::applyFilter($data, $filter, $named_args);
             }
+
+            return $data;
         }
 
-        // Execute potentially cacheable query.
-        $cacheable_query = new $class($query, $args, $options, $table_config);
-        $data = $this->executeCacheableQuery($cacheable_query);
-
-        if (!empty($data) && isset($filter)) {
-            $data = static::applyFilter($data, $filter, $named_args);
-        }
-
-        if (!empty($test_query)) {
-            if ($pre_data != $data) {
-                $post_data = $this->queryExecutor->query($test_query, $test_args, $test_options);
-                // Check $pre_data vs. $post_data to avoid race conditions.
-                if ($pre_data == $post_data) {
-                    // Trigger an erorr that the test failed.
-                    trigger_error("Warning: Query $query failed test check.", E_USER_ERROR);
-                }
-            }
-        }
+        $callback = array_shift($callbacks);
+        $data = $callback($callbacks, $query, $args, $options, $table_config);
 
         return $data;
     }
 
-    public function executeCacheableQuery($cacheable_query)
+    public function cacheMiddleware($callbacks, $query, $args, $options, $table_config)
     {
+        // Execute potentially cacheable query.
+        $class = $this->cacheableQueryClass;
+        $cacheable_query = new $class($query, $args, $options, $table_config);
+
         if (!$cacheable_query->isCacheable()) {
-            list($query, $args, $options) = $cacheable_query->getQueryArgsOptions();
-            return $this->queryExecutor->query($query, $args, $options);
+            $callback = array_shift($callbacks);
+            return $callback($callbacks, $query, $args, $options, $table_config);
         }
 
         $cache_pool = $this->cachePoolFactory->get($cacheable_query->getCacheConfiguration());
@@ -127,17 +178,16 @@ class QueryCache implements QueryExecutorInterface
             return $items[0];
         }
 
-        list($query, $args, $options) = $cacheable_query->getQueryArgsOptions();
-        $data = $this->queryExecutor->query($query, $args, $options);
+        $callback = array_shift($callbacks);
+        $data = $callback($callbacks, $query, $args, $options, $table_config);
+
+        if ($data instanceof \Traversable) {
+            $data = iterator_to_array($data);
+        }
+
         $cache_pool->set($key, $data);
 
         return $data;
-    }
-
-    public function invalidateQueryCache($cacheable_query)
-    {
-        $cache_pool = $this->cachePoolFactory->get($cacheable_query->getCacheConfiguration());
-        $cache_pool->clear();
     }
 
     public static function applyFilter($data, $filters, $named_arguments)

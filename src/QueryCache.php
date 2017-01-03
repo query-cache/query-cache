@@ -104,14 +104,14 @@ class QueryCache implements QueryExecutorInterface
             $data = iterator_to_array($data);
         }
 
-        if (serialize($pre_data) != serialize($data)) {
+        if ($pre_data != $data) {
             $post_data = $this->queryExecutor->query($query, $args, $options);
             if ($post_data instanceof \Traversable) {
                 $post_data = iterator_to_array($data);
             }
 
             // Check $pre_data vs. $post_data to avoid race conditions.
-            if (serialize($pre_data) == serialize($post_data)) {
+            if ($pre_data == $post_data) {
                 // Trigger an error that the test failed.
                 trigger_error("Warning: Query $query failed test check.", E_USER_ERROR);
             }
@@ -271,12 +271,12 @@ class QueryCache implements QueryExecutorInterface
         foreach ($order as $field => $options) {
             $tmp = array();
             foreach ($data as $key => $row) {
-                $tmp[$key] = $row[$field];
+                $tmp[$key] = str_replace('_', 'z', $row[$field]);
             }
 
             $args[] = $tmp;
             $args[] = $options[0];
-            $args[] = $options[1];
+            $args[] = $options[1] | SORT_FLAG_CASE;
         }
 
         $args[] = &$data;

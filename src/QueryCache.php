@@ -59,13 +59,13 @@ class QueryCache implements QueryExecutorInterface
         }
 
         $test_query = false;
-        if (!empty($table_config['test_queries'])) {
+        $random = mt_rand(1, 100);
+        if (!empty($table_config['test_queries']) && $random <= $table_config['test_queries']) {
             $test_query = $query;
-            $test_args = $args
+            $test_args = $args;
             $test_options = $options;
             $pre_data = $this->queryExecutor->query($query, $args, $options);
         }
-
 
         // Check for map/reduce
         $query_info = null;

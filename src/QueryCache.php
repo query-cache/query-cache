@@ -52,7 +52,7 @@ class QueryCache implements QueryExecutorInterface
         }
 
         $callbacks = $this->selectMiddlewares;
-        $callbacks['query'] = array($this, 'queryFinal');
+        $callbacks['queries'] = array($this, 'queryFinal');
 
         $callback = array_shift($callbacks);
         $data = $callback($callbacks, $query, $args, $options, $table_config);

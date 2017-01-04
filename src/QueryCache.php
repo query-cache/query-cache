@@ -301,7 +301,6 @@ class QueryCache implements QueryExecutorInterface
 
             $configuration += array(
                 'cache' => array(),
-                'cache_all_queries' => true,
                 'queries' => array(),
                 // Experimental options.
                 'key_value' => false,
@@ -312,6 +311,7 @@ class QueryCache implements QueryExecutorInterface
                 'keys' => array(),
                 'expire' => -1, // @todo Add constant back.
                 'tags' => array(),
+                'all_queries' => true,
             );
 
             if ($configuration['key_value'] === true) {
@@ -332,6 +332,7 @@ class QueryCache implements QueryExecutorInterface
                         'keys' => array(),
                         'expire' => -1, // @todo Add constant back.
                         'tags' => array(),
+                        'all_queries' => true,
                     );
 
                     $bin = $configuration['key_value']['cache']['bin'];

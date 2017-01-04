@@ -19,6 +19,10 @@ class QueryCache implements QueryExecutorInterface
         $this->queryExecutor = $query_executor;
         $this->cachePoolFactory = $cache_pool_factory;
 
+        $this->CUDMiddlewares = array(
+            'cache' => array($this, 'invalidateCacheMiddleware'),
+        );
+
         $this->selectMiddlewares = array(
             'test_queries' => array($this, 'testQueryMiddleware'),
             'map_reduce' => array($this, 'mapReduceMiddleware'),
@@ -42,16 +46,17 @@ class QueryCache implements QueryExecutorInterface
 
         // Invalidate the query cache for CUD operations.
         if ($query_type == 'INSERT' || $query_type == 'UPDATE' || $query_type == 'DELETE') {
-            return $this->invalidateQueryCache($query, $args, $options, $table_config);
+            $callbacks = $this->CUDMiddlewares;
         }
-
         // If this is not a SELECT query, then execute the original query and
         // return.
-        if ($query_type != 'SELECT') {
+        elseif ($query_type != 'SELECT') {
             return $this->queryExecutor->query($query, $args, $options);
         }
+        else {
+            $callbacks = $this->selectMiddlewares;
+        }
 
-        $callbacks = $this->selectMiddlewares;
         $callbacks['queries'] = array($this, 'queryFinal');
 
         $callback = array_shift($callbacks);
@@ -195,12 +200,18 @@ class QueryCache implements QueryExecutorInterface
         return $data;
     }
 
-    public function invalidateQueryCache($query, $args, $options, $table_config)
+    public function invalidateCacheMiddleware($callbacks, $query, $args, $options, $table_config)
     {
+        $callback = array_shift($callbacks);
+
+        $data = $callback($callbacks, $query, $args, $options, $table_config);
+
         $class = $this->cacheableQueryClass;
         $cacheable_query = new $class($query, $args, $options, $table_config);
         $cache_pool = $this->cachePoolFactory->get($cacheable_query->getCacheConfiguration());
         $cache_pool->clear();
+
+        return $data;
     }
 
     public static function applyFilter($data, $filters, $named_arguments)

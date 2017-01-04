@@ -65,6 +65,10 @@ class QueryCache implements QueryExecutorInterface
         $this->config = static::parseConfiguration($configuration);
     }
 
+    public function getCachePools() {
+        return $this->config['cache_pools'];
+    }
+
     public function queryFinal($callbacks, $query, $args, $options, $table_config)
     {
             // assert('empty($callbacks)', 'Callbacks must be empty in the final callback.');
@@ -307,12 +311,11 @@ class QueryCache implements QueryExecutorInterface
             );
 
             $configuration['cache'] += array(
-                'bin' => 'cache_query_' . $table,
-                'keys' => array(),
-                'expire' => -1, // @todo Add constant back.
+                'ttl' => false,
                 'tags' => array(),
                 'all_queries' => true,
             );
+            $configuration['cache']['pool'] = 'query_' . $table;
 
             if ($configuration['key_value'] === true) {
                 $configuration['key_value'] = array();
@@ -328,34 +331,34 @@ class QueryCache implements QueryExecutorInterface
 
                 if ($configuration['key_value']['cache'] !== false) {
                     $configuration['key_value']['cache'] += array(
-                        'bin' => 'cache_key_value_' . $table,
-                        'keys' => array(),
-                        'expire' => -1, // @todo Add constant back.
+                        'ttl' => false,
                         'tags' => array(),
                         'all_queries' => true,
                     );
 
-                    $bin = $configuration['key_value']['cache']['bin'];
-                    $query_cache_configuration['cache_bins'][$bin] = $bin;
+                    $configuration['key_value']['cache']['pool'] = 'key_value_' . $table;
+
+                    $bin = $configuration['key_value']['cache']['pool'];
+                    $query_cache_configuration['cache_pools'][$bin] = $bin;
                 }
             }
 
-            $bin = $configuration['cache']['bin'];
-            $query_cache_configuration['cache_bins'][$bin] = $bin;
+            $bin = $configuration['cache']['pool'];
+            $query_cache_configuration['cache_pools'][$bin] = $bin;
 
             $queries = $configuration['queries'];
             $configuration['queries'] = array();
 
             foreach ($queries as $query_info) {
                 $query_info += array(
-                    'table' => $table,
                     'query' => '',
                     'args' => array(),
                     'cache' => true,
                     // Experimental options.
-                    'tables' => array(),
+                    'tables' => array(), // @todo Implement me.
                     'map_reduce' => array(),
                 );
+                $query_info['table'] = $table;
 
                 $query = $query_info['query'];
 

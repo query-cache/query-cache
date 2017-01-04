@@ -13,6 +13,7 @@ class QueryCache implements QueryExecutorInterface
     protected $cacheableQueryClass = '\QueryCache\CacheableQuery';
     protected $selectMiddlewares = array();
     protected $config;
+    protected $staticCache;
 
     public function __construct($query_executor, $cache_pool_factory)
     {
@@ -26,6 +27,7 @@ class QueryCache implements QueryExecutorInterface
         $this->selectMiddlewares = array(
             'test_queries' => array($this, 'testQueryMiddleware'),
             'map_reduce' => array($this, 'mapReduceMiddleware'),
+            'static_cache' => array($this, 'staticCacheMiddleware'),
             'cache' => array($this, 'cacheMiddleware'),
         );
     }
@@ -162,6 +164,36 @@ class QueryCache implements QueryExecutorInterface
         }
 
         $data = $callback($callbacks, $query, $args, $options, $table_config);
+
+        return $data;
+    }
+
+    public function staticCacheMiddleware($callbacks, $query, $args, $options, $table_config)
+    {
+        $callback = array_shift($callbacks);
+
+        // Execute potentially cacheable query.
+        $class = $this->cacheableQueryClass;
+        $cacheable_query = new $class($query, $args, $options, $table_config);
+
+        if (!$cacheable_query->isCacheable()) {
+            return $callback($callbacks, $query, $args, $options, $table_config);
+        }
+
+        $key = $cacheable_query->getCacheKey();
+        $table = $table_config['table'];
+
+        if (isset($this->staticCache[$table][$key])) {
+            return $this->staticCache[$table][$key];
+        }
+
+        $data = $callback($callbacks, $query, $args, $options, $table_config);
+
+        if ($data instanceof \Traversable) {
+            $data = iterator_to_array($data);
+        }
+
+        $this->staticCache[$table][$key] = $data;
 
         return $data;
     }

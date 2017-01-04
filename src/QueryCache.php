@@ -181,7 +181,7 @@ class QueryCache implements QueryExecutorInterface
         $items = $cache_pool->getMultiple($keys);
 
         if (!empty($items)) {
-            return $items[0];
+            return $items[$key];
         }
 
         $data = $callback($callbacks, $query, $args, $options, $table_config);

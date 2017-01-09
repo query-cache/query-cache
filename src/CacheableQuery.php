@@ -127,6 +127,9 @@ class CacheableQuery
         if (empty($this->config['key_value']['cache'])) {
             return false;
         }
+        elseif (isset($this->queryInfo['key_value']['cache']) && $this->queryInfo['key_value']['cache'] === false) {
+            return false;
+        }
 
         $keys = array();
         $keys[] = 'key_value';
@@ -141,6 +144,10 @@ class CacheableQuery
             }
 
             $keys[] = $key . '=' . $arg;
+        }
+
+        if (count($keys) != (count($this->namedArgs) + 1)) {
+            return false;
         }
 
         return implode(':', $keys);

@@ -49,13 +49,11 @@ class QueryCache implements QueryExecutorInterface
         // Invalidate the query cache for CUD operations.
         if ($query_type == 'INSERT' || $query_type == 'UPDATE' || $query_type == 'DELETE') {
             $callbacks = $this->CUDMiddlewares;
-        }
-        // If this is not a SELECT query, then execute the original query and
+        } // If this is not a SELECT query, then execute the original query and
         // return.
         elseif ($query_type != 'SELECT') {
             return $this->queryExecutor->query($query, $args, $options);
-        }
-        else {
+        } else {
             $callbacks = $this->selectMiddlewares;
         }
 
@@ -72,7 +70,8 @@ class QueryCache implements QueryExecutorInterface
         $this->config = static::parseConfiguration($configuration);
     }
 
-    public function getCachePools() {
+    public function getCachePools()
+    {
         return $this->config['cache_pools'];
     }
 
@@ -95,8 +94,7 @@ class QueryCache implements QueryExecutorInterface
         // Check for a query-specific override.
         if (isset($query_info['test_queries'])) {
             $test_queries = $query_info['test_queries'];
-        }
-        elseif (isset($table_config['test_queries'])) {
+        } elseif (isset($table_config['test_queries'])) {
             $test_queries = $table_config['test_queries'];
         }
 
@@ -126,7 +124,6 @@ class QueryCache implements QueryExecutorInterface
                 // Trigger an error that the test failed.
                 trigger_error("Warning: Query $query failed test check.", E_USER_ERROR);
             }
-
         }
 
         return $data;

@@ -7,6 +7,7 @@ namespace QueryCache;
  */
 class QueryCache implements QueryExecutorInterface
 {
+    protected $queryCache;
     protected $queryExecutor;
     protected $cachePoolFactory;
 
@@ -17,6 +18,7 @@ class QueryCache implements QueryExecutorInterface
 
     public function __construct($query_executor, $cache_pool_factory)
     {
+        $this->queryCache = $this;
         $this->queryExecutor = $query_executor;
         $this->cachePoolFactory = $cache_pool_factory;
 
@@ -150,7 +152,7 @@ class QueryCache implements QueryExecutorInterface
                 $args[] = $named_args[$key];
             }
 
-            $data = $this->query($query, $args, $options);
+            $data = $this->queryCache->query($query, $args, $options);
 
             if (!empty($data) && !empty($query_info['map_reduce']['filter'])) {
                 $filter = $query_info['map_reduce']['filter'];

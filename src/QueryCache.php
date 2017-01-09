@@ -386,8 +386,8 @@ class QueryCache implements QueryExecutorInterface
                 }
             }
 
-            $bin = $configuration['cache']['pool'];
-            $query_cache_configuration['cache_pools'][$bin] = $bin;
+            $pool = $configuration['cache']['pool'];
+            $query_cache_configuration['cache_pools'][$pool] = $pool;
 
             $queries = $configuration['queries'];
             $configuration['queries'] = array();

@@ -9,18 +9,37 @@ use QueryCache\QueryCache as BaseQueryCache;
  */
 class QueryCache extends BaseQueryCache
 {
-
-    public function cacheMiddleware($callbacks, $query, $args, $options, $table_config)
+    public function __construct($query_executor, $cache_pool_factory)
     {
+        parent::__construct($query_executor, $cache_pool_factory);
+
+        $temp = $this->CUDMiddlewares['cache'];
+        unset($this->CUDMiddlewares['cache']);
+        $this->CUDMiddlewares['cache_key_value'] = array($this, 'invalidateKVCacheMiddleware');
+        $this->CUDMiddlewares['cache'] = $temp;
+
+        $temp = $this->selectMiddlewares['cache'];
+        unset($this->selectMiddlewares['cache']);
+        $this->selectMiddlewares['cache_key_value'] = array($this, 'KVCacheMiddleware');
+        $this->selectMiddlewares['cache'] = $temp;
+
+    }
+
+    public function KVCacheMiddleware($callbacks, $query, $args, $options, $table_config)
+    {
+        $callback = array_shift($callbacks);
+
         $class = $this->cacheableQueryClass;
         $cacheable_query = new $class($query, $args, $options, $table_config);
 
         $key = $cacheable_query->getKVCacheKey();
 
+        // Early return if this is not a key-value query.
         if ($key === false) {
-            return parent::executeCacheableQuery($callbacks, $query, $args, $options, $table_config);
+            return $callback($callbacks, $query, $args, $options, $table_config);
         }
 
+        // Get the data from the K/V query cache.
         $cache_pool = $this->cachePoolFactory->get($cacheable_query->getKVCacheConfiguration());
 
         $keys = array($key);
@@ -30,8 +49,7 @@ class QueryCache extends BaseQueryCache
             return $items[0];
         }
 
-        list($query, $args, $options) = $cacheable_query->getKVQueryArgsOptions();
-        $data = $this->query($query, $args, $options);
+        $data = $callback($callbacks, $query, $args, $options, $table_config);
         $cache_pool->set($key, $data);
 
         return $data;
@@ -40,8 +58,12 @@ class QueryCache extends BaseQueryCache
     /**
      * {@inheritdoc}
      */
-    public function invalidateQueryCache($query, $args, $options, $table_config)
+    public function invalidateKVCacheMiddleware($callbacks, $query, $args, $options, $table_config)
     {
+        $callback = array_shift($callbacks);
+
+        $data = $callback($callbacks, $query, $args, $options, $table_config);
+
         $class = $this->cacheableQueryClass;
         $cacheable_query = new $class($query, $args, $options, $table_config);
 
@@ -50,12 +72,11 @@ class QueryCache extends BaseQueryCache
 
         if ($key !== false) {
             $cache_pool->deleteItem($key);
-        } elseif ($cacheable_query->getQueryType() != 'INSERT') {
+        } elseif ($class::queryType($query) != 'INSERT') {
             // @todo Warn when this happens.
             $cache_pool->clear();
         }
 
-        parent::invalidateQueryCache($cacheable_query);
-        return;
+        return $data;
     }
 }

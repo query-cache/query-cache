@@ -337,12 +337,12 @@ class QueryCache implements QueryExecutorInterface
         $query_cache_configuration = array();
 
         foreach ($base_configuration as $table => $configuration) {
-            if (!$configuration) {
-                    continue;
+            if ($configuration === false) {
+                continue;
             }
 
             if ($configuration === true) {
-                    $configuration = array();
+                $configuration = array();
             }
 
             $configuration += array(

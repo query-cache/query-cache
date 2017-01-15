@@ -161,6 +161,10 @@ class CacheableQuery
      */
     public function getKVCacheConfiguration()
     {
+        if (empty($this->config['key_value']['cache'])) {
+            return false;
+        }
+
         return $this->config['key_value']['cache'];
     }
 

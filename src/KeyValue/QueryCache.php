@@ -65,6 +65,10 @@ class QueryCache extends BaseQueryCache
         $data = $callback($callbacks, $query, $args, $options, $table_config);
 
         $class = $this->cacheableQueryClass;
+        if ($class::queryType($query) == 'INSERT') {
+            return $data;
+        }
+
         $cacheable_query = new $class($query, $args, $options, $table_config);
 
         $cache_config = $cacheable_query->getKVCacheConfiguration();
@@ -77,8 +81,9 @@ class QueryCache extends BaseQueryCache
 
         if ($key !== false) {
             $cache_pool->deleteItem($key);
-        } elseif ($class::queryType($query) != 'INSERT') {
-            // @todo Warn when this happens.
+        } else {
+            trigger_error('query_cache: Key Value cleared pool due to query: ' . $query, E_USER_WARNING);
+
             $cache_pool->clear();
         }
 

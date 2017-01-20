@@ -97,6 +97,10 @@ class CacheableQuery
 
     public static function namedArguments($args, $query_info)
     {
+        if (empty($args)) {
+            return array();
+        }
+
         // Fallback to arg_? in case of unnamed arguments.
         if (isset($query_info['args'])) {
             $names = $query_info['args'];

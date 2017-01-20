@@ -82,8 +82,8 @@ class QueryCache extends BaseQueryCache
         if ($key !== false) {
             $cache_pool->deleteItem($key);
         } else {
-            // @todo Warn when this happens.
-            watchdog('query_cache', 'Key Value cleared pool due to query: @query', array('@query' => $query));
+            trigger_error('query_cache: Key Value cleared pool due to query: ' . $query, E_USER_WARNING);
+
             $cache_pool->clear();
         }
 

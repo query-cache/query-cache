@@ -36,7 +36,7 @@ class QueryCache extends BaseQueryCache
 
         // Early return if this is not a key-value query.
         if ($key === false) {
-            return $callback($callbacks, $query, $args, $options, $table_config);
+            return call_user_func_array($callback, array($callbacks, $query, $args, $options, $table_config));
         }
 
         // Get the data from the K/V query cache.
@@ -49,7 +49,7 @@ class QueryCache extends BaseQueryCache
             return $items[0];
         }
 
-        $data = $callback($callbacks, $query, $args, $options, $table_config);
+        $data = call_user_func_array($callback, array($callbacks, $query, $args, $options, $table_config));
         $cache_pool->set($key, $data);
 
         return $data;
@@ -62,7 +62,7 @@ class QueryCache extends BaseQueryCache
     {
         $callback = array_shift($callbacks);
 
-        $data = $callback($callbacks, $query, $args, $options, $table_config);
+        $data = call_user_func_array($callback, array($callbacks, $query, $args, $options, $table_config));
 
         $class = $this->cacheableQueryClass;
         if ($class::queryType($query) == 'INSERT') {
@@ -82,8 +82,8 @@ class QueryCache extends BaseQueryCache
         if ($key !== false) {
             $cache_pool->deleteItem($key);
         } else {
-            trigger_error('query_cache: Key Value cleared pool due to query: ' . $query, E_USER_WARNING);
-
+            // @todo Warn when this happens.
+            watchdog('query_cache', 'Key Value cleared pool due to query: @query', array('@query' => $query));
             $cache_pool->clear();
         }
 

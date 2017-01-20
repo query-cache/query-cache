@@ -62,7 +62,7 @@ class QueryCache implements QueryExecutorInterface
         $callbacks['queries'] = array($this, 'queryFinal');
 
         $callback = array_shift($callbacks);
-        $data = $callback($callbacks, $query, $args, $options, $table_config);
+        $data = call_user_func_array($callback, array($callbacks, $query, $args, $options, $table_config));
 
         return $data;
     }
@@ -102,7 +102,7 @@ class QueryCache implements QueryExecutorInterface
 
         // Early return if we do not want testing.
         if (empty($test_queries) || mt_rand(1, 100) > $test_queries) {
-            return $callback($callbacks, $query, $args, $options, $table_config);
+            return call_user_func_array($callback, array($callbacks, $query, $args, $options, $table_config));
         }
 
         $pre_data = $this->queryExecutor->query($query, $args, $options);
@@ -110,7 +110,7 @@ class QueryCache implements QueryExecutorInterface
             $pre_data = iterator_to_array($data);
         }
 
-        $data = $callback($callbacks, $query, $args, $options, $table_config);
+        $data = call_user_func_array($callback, array($callbacks, $query, $args, $options, $table_config));
         if ($data instanceof \Traversable) {
             $data = iterator_to_array($data);
         }
@@ -162,7 +162,7 @@ class QueryCache implements QueryExecutorInterface
             return $data;
         }
 
-        $data = $callback($callbacks, $query, $args, $options, $table_config);
+        $data = call_user_func_array($callback, array($callbacks, $query, $args, $options, $table_config));
 
         return $data;
     }
@@ -176,7 +176,7 @@ class QueryCache implements QueryExecutorInterface
         $cacheable_query = new $class($query, $args, $options, $table_config);
 
         if (!$cacheable_query->isCacheable()) {
-            return $callback($callbacks, $query, $args, $options, $table_config);
+            return call_user_func_array($callback, array($callbacks, $query, $args, $options, $table_config));
         }
 
         $key = $cacheable_query->getCacheKey();
@@ -186,7 +186,7 @@ class QueryCache implements QueryExecutorInterface
             return $this->staticCache[$table][$key];
         }
 
-        $data = $callback($callbacks, $query, $args, $options, $table_config);
+        $data = call_user_func_array($callback, array($callbacks, $query, $args, $options, $table_config));
 
         if ($data instanceof \Traversable) {
             $data = iterator_to_array($data);
@@ -206,7 +206,7 @@ class QueryCache implements QueryExecutorInterface
         $cacheable_query = new $class($query, $args, $options, $table_config);
 
         if (!$cacheable_query->isCacheable()) {
-            return $callback($callbacks, $query, $args, $options, $table_config);
+            return call_user_func_array($callback, array($callbacks, $query, $args, $options, $table_config));
         }
 
         $cache_pool = $this->cachePoolFactory->get($cacheable_query->getCacheConfiguration());
@@ -220,7 +220,7 @@ class QueryCache implements QueryExecutorInterface
             return $items[$key];
         }
 
-        $data = $callback($callbacks, $query, $args, $options, $table_config);
+        $data = call_user_func_array($callback, array($callbacks, $query, $args, $options, $table_config));
 
         if ($data instanceof \Traversable) {
             $data = iterator_to_array($data);
@@ -235,7 +235,7 @@ class QueryCache implements QueryExecutorInterface
     {
         $callback = array_shift($callbacks);
 
-        $data = $callback($callbacks, $query, $args, $options, $table_config);
+        $data = call_user_func_array($callback, array($callbacks, $query, $args, $options, $table_config));
 
         $class = $this->cacheableQueryClass;
         $cacheable_query = new $class($query, $args, $options, $table_config);
